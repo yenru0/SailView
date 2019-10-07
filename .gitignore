@@ -1,5 +1,5 @@
-documents/
-dummy/documents/
-templates/documents/
+documents/**
+dummy/documents/**
+templates/documents/**
 .git
 .idea
