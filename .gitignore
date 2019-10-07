@@ -1,5 +1,3 @@
-documents/**
-dummy/documents/**
-templates/documents/**
+documents/
 .git
 .idea
