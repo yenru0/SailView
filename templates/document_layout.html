@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='app.css') }}">
+        <title>{{ title_name }}</title>
+    </head>
+    <body>
+        <header>
+            <nav>
+                <a href="/front/">MarkWebView</a>
+                <a href="/about/">About</a>
+                {% if not isdir %}
+                <form method="post", action="/compile">
+                    <input type="submit" name="path" value="{{ path }}">
+                </form>
+                {% endif %}
+            </nav>
+            <hr color = "gray", size="1">
+        </header>
+        {% block content %}{% endblock %}
+    </body>
+</html>

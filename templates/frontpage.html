@@ -1,14 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>MarkWebView</title>
-</head>
-<body>
-
-
-
-<h1>목록</h1>
-
-</body>
-</html>
+{% extends 'layout.html' %}
+{% block content %}
+<h1>마크다운 웹 뷰어 with XeLaTeX</h1>
+<a href="{{url_for('showDocument', document_path='') }}">주하진의 문서 보러가기</a>
+{% endblock %}

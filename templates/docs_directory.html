@@ -1,0 +1,20 @@
+{% extends 'document_layout.html' %}
+{% block content %}
+{% if dirs %}
+<ul>
+    {% for d in dirs %}
+    <li><a href="{{ url_for('showDocument', document_path = composePath(path, d)) }}">{{ "{0}/{1}".format(path, d) }}</a></li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% if files and dirs %}
+<hr>
+{% endif %}
+{% if files %}
+<ul>
+    {% for f in files %}
+    <li><a href="{{ url_for('showDocument', document_path = composePath(path, f)) }}">{{ "{0}/{1}".format(path, f) }}</a></li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}
