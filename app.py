@@ -1,6 +1,4 @@
-#import markdown
 import mistune
-from mdx_gfm import GithubFlavoredMarkdownExtension
 from flask import Flask, render_template_string, redirect, render_template, url_for, abort, request
 import re
 import sys
@@ -34,7 +32,7 @@ LATEX_Cs = r"""\documentclass[dvips]{article}
 \end{document}
 """
 
-output_template = """{{% extends 'document_layout.html' %}}
+output_template = """{{% extends 'layout.html' %}}
 {{% block content %}}
 {0}
 {{% endblock %}}
@@ -138,17 +136,17 @@ def showDocument(document_path):
         return render_template("documentsNotFound.html")
     if os.path.isdir(composePath("templates/", topdir, document_path)):
         p, dirs, files =  next(os.walk(composePath("templates/", topdir, document_path)))
-        return render_template("docs_directory.html", title_name ="MWV-" + document_path, isdir = True, path = document_path, dirs = dirs, files = files)
+        return render_template("docs_directory.html", title ="MWV-" + document_path, isadmin = True, isfile = False, isdir = True, path = document_path, dirs = dirs, files = files)
     elif not os.path.isfile(composePath("templates/", topdir, document_path)):
         return render_template("documentsNotFound.html")
     else:
-        return render_template(composePath(topdir, document_path), title_name = os.path.basename(document_path), isdir = False, path= document_path)
+        return render_template(composePath(topdir, document_path), title = os.path.basename(document_path), isadmin = True, isfile = True, isdir = False, path= document_path)
 
 
 @app.route("/")
 @app.route("/front/")
 def frontPage():
-    return render_template("frontpage.html")
+    return render_template("frontpage.html", title = "MarkWebView", isadmin=True)
 
 @app.route("/compile", methods=['POST'])
 def showCompile():
@@ -162,6 +160,10 @@ def showCompile():
         compile_by_path(composePath(topdir, path))
     return redirect(url_for('showDocument', document_path=path))
 
+### TODO: make this function
+@app.route("/compile_dir", methods=['POST'])
+def showCompile_dir():
+    pass
 
 
 if __name__ == '__main__':
@@ -172,6 +174,7 @@ if __name__ == '__main__':
     if not (os.path.isdir("templates/documents")):
         os.makedirs("templates/documents")
 
-    app.run(host="192.168.0.5", port="54321", debug=True)
+    compile_all()
+    app.run(host="localhost", port="54321", debug=True)
     print(composePath("/document/recgetx/", "/syment/", "krist/"))
     #mainWindow()
