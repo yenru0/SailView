@@ -1,16 +1,36 @@
+"""
+Project Sail Steel
+"""
+
+
 import mistune
 from flask import Flask, render_template_string, redirect, render_template, url_for, abort, request
 import re
 import sys
 import os
 import subprocess as sp
+import logging
+
+__version__ = "0.0.1t"
+
+"""
+f: file
+d: document 
+***document in file***
+
+name: name (usually using with f like fname)
+path: dir + fname
+dir: path except fname
+
+dpath: document_path
+fpath: file_path
+"""
 
 
 ### init
 topdir = "documents/"
 md = mistune.Markdown()
-latex_re = re.compile(r'<pre><code class="lang-(latex|math)">(.+)</code></pre>', re.DOTALL)
-math_re = re.compile(r'<pre><code class="lang-math">(.+)</code></pre>', re.DOTALL)
+latex_re = re.compile(r'<pre><code class="lang-(latex|math)">(.+?)</code></pre>', re.DOTALL)
 
 LATEX_Cs = r"""\documentclass[dvips]{article}
 \usepackage{amsmath}
@@ -40,66 +60,104 @@ output_template = """{{% extends 'layout.html' %}}
 
 app = Flask(__name__)
 
+### define default functions
 def composePath(*args:str):
-    return "/".join([i for p in args
-                        for i in p.split("/")
-                        if i])
+    return "/".join([j for p in args
+                    for i in p.split("/")
+                    for j in i.split("\\")
+                     if j]
+                    )
+
+
+
 app.jinja_env.globals.update(composePath=composePath)
 
-def GFM_LMX(document_path, filename):
+
+### define compile functions
+def GFM_LMX(document_path):
+    """
+
+    :param document_path: example: documents/subdir.../main.md
+    :return: HTML string
+
+    :var
+        lastendpos: temp,
+        dir: dpath except fname,
+        fname: file_name,
+        bfname: fname except EXT
+        dummydir: dummy dir
+        dummytempdir: that store REAL dummy like .log, .aux, **.xdv**
+        temptexfpath:
+
+    """
     lastendpos = 0
-    basefilename = os.path.splitext(filename)[0]
-    with open(composePath(document_path, "/{}".format(filename)), 'r', encoding='utf-8') as f:
+
+    dir = os.path.dirname(document_path)
+    fname = os.path.basename(document_path)
+    bfname = os.path.splitext(fname)[0]
+
+    with open(document_path, 'r', encoding='utf-8') as f:
         output = output_template.format(md(f.read()))
+
     while 1:
+        dummydir = composePath("dummy/", dir)
+        dummytempdir = composePath(dummydir, ".{}".format(bfname))
         n = 0
         t = latex_re.search(output, lastendpos)
         if t:
 
-            if not (os.path.isdir(composePath("dummy/", "{0}".format(document_path)))):
-                os.makedirs(composePath("dummy/", "{0}".format(document_path)))
-            with open(composePath("dummy/", document_path, "/{0}{1}.tex".format(basefilename, n)), 'w', encoding='utf-8') as f:
+            if not (os.path.isdir(dummydir)):
+                os.makedirs(dummydir)
+
+            temptexfpath = composePath(dummydir, "/{}{}.tex".format(bfname, n))
+
+            with open(temptexfpath, 'w', encoding='utf-8') as f:
                 f.write(LATEX_Cs % t.group(2))
-            if not (os.path.isdir(composePath("dummy/", document_path, "." + basefilename))):
-                os.makedirs(composePath("dummy/", document_path, "." + basefilename))
+            if not (os.path.isdir(dummytempdir)):
+                os.makedirs(dummytempdir)
             op = sp.call(
-                "xelatex --no-pdf --output-directory={0} -interaction=batchmode --halt-on-error {1}".format(composePath("dummy/", document_path, "."+ basefilename), composePath("dummy/", document_path, "/{0}{1}.tex".format(basefilename, n)))
+                "xelatex --no-pdf --output-directory={0} -interaction=batchmode --halt-on-error {1}".format(dummytempdir, temptexfpath)
             )
 
             if op == 1:
-                print(composePath(document_path, basefilename + str(n) + ".tex"), "는 이상한 것이 분명하오 요카지마.")
+                print(temptexfpath, "는 이상한 것이 분명하오 요카지마.")
 
             else:
+                tempsvgfpath = composePath(dummydir, "/{}{}.svg".format(bfname, n))
+                tempdvifpath = composePath(dummytempdir, "/{}{}.xdv".format(bfname, n)) # Xelatex specific
                 op2 = sp.call(
                     "dvisvgm --clipjoin -e --no-fonts -o {0} {1}".format(
-                        composePath("dummy/", document_path, "/{}{}.svg".format(basefilename, n)),
-                        composePath("dummy/", document_path, ".{0}/{0}{1}.xdv".format(basefilename, n))
+                        composePath(tempsvgfpath),
+                        composePath(tempdvifpath)
                     )
                 )
+
                 try:
-                    with open(composePath("dummy/", document_path, "/{0}{1}.svg".format(basefilename, n)), 'r', encoding='utf-8') as f:
+                    with open(tempsvgfpath, 'r', encoding='utf-8') as f:
                         output = latex_re.sub(f.read(), output, count=1)
                 except Exception as e:
                     print(e)
                     pass
-
             lastendpos = t.end()
             n += 1
-
         else:
             break
     return output
 
-def compile(document_path, filename):
-    basefilename = os.path.splitext(filename)[0]
-    with open(composePath("templates/", document_path, "/{}.html".format(basefilename)), 'w', encoding='utf-8') as f:
-        f.write(GFM_LMX(document_path, filename))
 
+def compile(document_path):
+    dir = os.path.dirname(document_path)
+    fname = os.path.basename(document_path)
+    with open(composePath("templates/", dir, "/{}.html".format(fname)), 'w', encoding='utf-8') as f:
+        f.write(GFM_LMX(document_path))
+
+##@ Deprecated
 def compile_by_path(document_path_with_file):
     basefilename = os.path.splitext(os.path.basename(document_path_with_file))[0] + ".md"
     document_path = os.path.dirname(document_path_with_file)
     compile(document_path, basefilename)
 
+### Deprecated In USER
 def compile_all():
     for p, ds, fns in os.walk(topdir):
         for d in ds:
@@ -108,7 +166,7 @@ def compile_all():
         for fn in fns:
             ext = os.path.splitext(fn)[-1]
             if ext == ".md":
-                compile(p, fn)
+                compile(composePath(p, fn))
 
 
 
@@ -131,9 +189,8 @@ def showDocs():
 
 @app.route("/docs/<path:document_path>")
 def showDocument(document_path):
-    print(document_path)
-    if document_path == None:
-        return render_template("documentsNotFound.html")
+
+
     if os.path.isdir(composePath("templates/", topdir, document_path)):
         p, dirs, files =  next(os.walk(composePath("templates/", topdir, document_path)))
         return render_template("docs_directory.html", title ="MWV-" + document_path, isadmin = True, isfile = False, isdir = True, path = document_path, dirs = dirs, files = files)
@@ -150,21 +207,29 @@ def frontPage():
 
 @app.route("/compile", methods=['POST'])
 def showCompile():
-
     path = request.form['path']
-    print(path)
     if path == None:
         path = ''
         pass
     else:
-        compile_by_path(composePath(topdir, path))
+        compile(composePath(topdir, os.path.splitext(path)[0]))
     return redirect(url_for('showDocument', document_path=path))
 
-### TODO: make this function
 @app.route("/compile_dir", methods=['POST'])
 def showCompile_dir():
-    pass
+    path = request.form['path']
+    if path == None:
+        path = ''
+        pass
+    else:
+        for p, dirs, fns in os.walk(composePath(topdir, path)):
+            for fn in fns:
+                ext = os.path.splitext(fn)[-1]
+                if ext == '.md':
+                    print(composePath(p, fn))
+                    compile(composePath(p, fn))
 
+    return redirect(url_for('showDocument', document_path=path))
 
 if __name__ == '__main__':
     if not (os.path.isdir("dummy")):
@@ -173,8 +238,9 @@ if __name__ == '__main__':
         os.makedirs("documents")
     if not (os.path.isdir("templates/documents")):
         os.makedirs("templates/documents")
-
-    compile_all()
-    app.run(host="localhost", port="54321", debug=True)
-    print(composePath("/document/recgetx/", "/syment/", "krist/"))
+    """
+    initial setting 해야함
+    """
+    #compile_all()
+    app.run(host="localhost", port="54321",)
     #mainWindow()

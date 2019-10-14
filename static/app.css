@@ -21,15 +21,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+
+
 body {
   font-family: 나눔고딕, 나눔고딕, 나눔고딕;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.6;
-  padding-top: 10px;
-  padding-bottom: 10px;
   background-color: white;
-  padding: 30px;
   color: #333;
+  margin: 0;
+
 }
 
 body > *:first-child {
@@ -136,8 +137,11 @@ p, blockquote, ul, ol, dl, li, table, pre {
 
 hr {
   border: 0 none;
-  color: #cccccc;
-  height: 4px;
+  clear:both;
+  color: #aaaaaa;
+  background-color: #aaaaaa;
+  display: block;
+  height: 5px;
   padding: 0;
 }
 
