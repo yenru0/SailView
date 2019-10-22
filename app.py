@@ -31,10 +31,11 @@ dpath: document_path
 fpath: file_path
 """
 
+# =========
+# init
+# =========
 
-### init
-
-#topdir = "documents/"
+# topdir = "documents/"
 dummydir = "./dummy/"
 md = mistune.Markdown()
 latex_re = re.compile(r'<pre><code class="(lang|language)-(latex|math)">(.+?)</code></pre>', re.DOTALL)
@@ -65,14 +66,53 @@ output_template = """{{% extends 'layout.html' %}}
 {{% endblock %}}
 """
 
+#
+# permission set
+#
+"""
+Document Access Permission?
+public: for all user but not generator
+private: non public, It owes But High permission User for example 'admin' and 'moderator'
+locked: 'highuser' can connect this simple locked document.
+---
+forbidden: for 'admin' and 'moderator' 
+security: for 'admin' only
+
+for example an example document perm is 'public/locked/security'
+"""
+
+doc_permission = {"public": 0, "private": 1, "locked": 2, "forbidden": 3, "security": 4}
+private_permission = 1
+public_document_permissions = [0, 1, 2]
+"""
+user permission?
+banned: It was a human.
+human: It is normal user
+highuser: high user is allowed to connect locked document
+moderator: sub admin
+admin: admin!
+"""
+
+user_permission= {"banned": 0, "human": 1, "highuser": 2, "moderator": 3, "admin": 4}
+generate_private_permission = 1
+
+
+
+
+
+
+#
+# sqlite db init
+#
+
 conn = None
 curs = None
 
-### sqlite db init
 db_name = "docs.db"
 
 conn = sqlite3.connect(db_name)
 curs = conn.cursor()
+# TODO: access_perm update to (get_perm, edit_perm, del_perm)
 curs.execute("CREATE TABLE if not exists document (user, dir, doc_name, raw, compiled, last, access_perm)")
 curs.execute("CREATE TABLE if not exists history (number, user, dir, doc_name, edit_user, ip, cause, length, type)")
 curs.execute("CREATE TABLE if not exists user (name, id, pw, permission, date)")
@@ -88,14 +128,6 @@ def opendb(func):
         curs = conn.cursor()
         func(*args, **kwargs)
     return wrapper
-
-def closedb():
-    conn.close()
-
-
-    curs.execute("CREATE TABLE if not exists document (user, dir, doc_name, raw, compiled, last, access_perm)")
-    curs.execute("CREATE TABLE if not exists history (number, user, dir, doc_name, edit_user, ip, cause, length, type)")
-    curs.execute("CREATE TABLE if not exists user (name, id, pw, permission, date)")
 
 
 ### flask init
@@ -139,8 +171,13 @@ app.jinja_env.globals.update(composePath=composePath)
 
 
 
+# =========
+# define sqlite operation functions
+# ========
 
-### define sqlite operation functions
+#
+# user
+#
 @opendb
 def check_user_overlap(name:str, id:str):
     """
@@ -149,8 +186,19 @@ def check_user_overlap(name:str, id:str):
     :return: True if Exists Others else False
     check if exists same name or id
     """
-    curs.execute("SELECT name, id FROM user WHERE name = :name OR id = :id", {'name': name, 'id': id})
+    curs.execute("SELECT name, id FROM user WHERE name = :name OR id = :id", {"name": name, "id": id})
     return bool(curs.fetchall())
+
+
+@opendb
+def get_user_by_name(name):
+    curs.execute("SELECT * FROM user WHERE name = :name", {"name": name})
+    return curs.fetchone()
+
+@opendb
+def get_user_by_id(id):
+    curs.execute("SELECT * FROM user WHERE id = :id", {"id": id})
+    return curs.fetchone()
 
 @opendb
 def make_user(name:str, id:str, pw:str, perm:str = None):
@@ -176,26 +224,28 @@ def make_user(name:str, id:str, pw:str, perm:str = None):
         return True
 
 
+#
+# document
+#
+
 
 @opendb
-def get_raw(user:str, dir:str, doc_name:str):
+def get_raw(user:str, dir:str, doc_name:str, acperm):
     curs.execute("SELECT raw FROM document WHERE user = ? AND dir = ? AND doc_name = ?", (user, dir, doc_name))
-    t = curs.fetchone()
-    if t:
-        return t[0]
-    else:
-        return False
+    return curs.fetchone()
+
 
 @opendb
-def get_compiled(user, dir, doc_name):
+def get_compiled(user, dir, doc_name, acperm):
     curs.execute("SELECT compiled FROM document WHERE user = ? AND dir = ? AND doc_name = ?", (user, dir, doc_name))
-    t = curs.fetchone()
-    if t:
-        return t[0]
-    else:
-        return False
+    return curs.fetchone()
 
 
+
+
+#
+# path
+#
 
 @opendb
 def get_dirs(user):
@@ -257,6 +307,8 @@ def make_dir(user, dir, dir_name):
         return True
 
 
+
+
 @opendb
 def del_all_document():
     try:
@@ -267,7 +319,11 @@ def del_all_document():
 
 
 
-### define compile functions
+
+
+# =========
+# Define Compile Functions
+# ==========
 def GFM_LMX(raw, extended = True, perm = True):
     lastendpos = 0
 
@@ -296,7 +352,7 @@ def GFM_LMX(raw, extended = True, perm = True):
                     else:
                         tempdvifname = os.path.splitext(tmpf.name)[0] + ".xdv"
 
-                        op2: string = sp.check_output(
+                        op2: str = sp.check_output(
                             "dvisvgm --clipjoin -e --stdout --no-fonts {0}".format(tempdvifname),
                         )
 
@@ -365,6 +421,10 @@ def showDocument(document_path):
 
 
 @app.route("/")
+def c():
+    print(get_user_by_id("354"))
+    return ""
+
 @app.route("/front/")
 def frontPage():
     return render_template("frontpage.html", title = "MarkWebView", isadmin=True)
@@ -399,7 +459,8 @@ if __name__ == '__main__':
     """
     initial setting 해야함
     """
-    print(make_dir("yenru0", "usr", "raw"))
+    app.run(host="localhost", port="54321",)
+    print(get_user_by_id("354"))
     #print(get_raw('yenru0', '', 'teset'))
     #compile_all()
     #app.run(host="localhost", port="54321",)
