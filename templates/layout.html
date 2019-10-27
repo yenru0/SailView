@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename= 'app.css') }}"/>
+    {% if title %}
     <title>{{ title }}</title>
+    {% else %}
+    <title> SailView </title>
+    {% endif %}
     <meta name="viewport" content="width=device-width, user-scalable=no">
     <style>
     .topnav {
@@ -12,17 +16,6 @@
         overflow:hidden;
     }
 
-    input[type=submit] {
-      background-color: transparent;
-      border: 0 none;
-      font-size: 12pt;
-      letter-spacing: -1px;
-      font-weight: bold;
-      color: white;
-      text-decoration: none;
-      margin: 4px 2px;
-      cursor: pointer;
-    }
     </style>
 </head>
 <body>
@@ -33,27 +26,15 @@
                 <a href="/about/" style="padding:4pt; color:white"><strong>About</strong></a>
                 <a href="/option" style="padding:4pt; color:white"><strong>Option</strong></a>
             </div>
-            <div class="rightnavbox" style="padding: 10px;float:right; display: flex; flex-direction:row-reserve; flex-wrap:wrap; align-items:flex-start">
-                {% if isadmin %}
-                {% if isfile %}
-                <form style="padding:2pt;" method="post", action="/compile">
-                    <input type="submit" name="submit_compile" value="compile this">
-                    <input type="hidden" name="path" value="{{ path }}">
-                </form>
-                {% elif isdir %}
-                <form style="padding:2pt;" method="post", action="/compile_dir">
-                    <input type="submit" name="submit_compile_dir" value="compile this directory">
-                    <input type="hidden" name="path" value="{{ path }}">
-                </form>
-                {% endif %}
-                {% endif %}
-            </div>
+
         </nav>
 
-        <hr color="darkgray">
+        <hr color="gray">
     </header>
+
     <main role="main" style="padding:5pt; margin: 20pt;">
-        {% block content %}{% endblock %}
+        {% block content %}
+        {% endblock %}
     </main>
 </body>
 </html>

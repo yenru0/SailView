@@ -1,5 +1,16 @@
 {% extends 'layout.html' %}
 {% block content %}
 <h1>마크다운 웹 뷰어 with XeLaTeX</h1>
-<a href="{{url_for('showDocument', document_path='') }}">주하진의 문서 보러가기</a>
+{% if session['login_state'] != 1 %}
+<a href="{{ url_for('loginPage')}}">login 하러가기</a>
+<a href="{{ url_for('registerPage')}}">register 하러가기</a>
+{% else %}
+<div id="user_state">
+    <p>{{ session["name"] }} </p>
+    <p>{{ session["id"] }} </p>
+</div>
+<a href="{{ url_for('logoutPage')}}">logout 하러가기</a>
+{% endif %}
+<hr>
+<a href="{{ url_for('showUser', user=':public:') }}">public project 보러가기</a>
 {% endblock %}

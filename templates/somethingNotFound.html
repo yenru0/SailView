@@ -1,0 +1,11 @@
+{% extends 'layout.html' %}
+{% block content %}
+
+{% if project_path %}
+<p>'{{ project_path }}'은(는) 존재하지 않는 프로젝트입니다.</p>
+{% elif document_path %}
+<p>'{{ document_path[1:] }}'은(는) 존재하지 않는 프로젝트 문서입니다.</p>
+{% endif %}
+
+
+{% endblock %}
