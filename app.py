@@ -62,12 +62,6 @@ LATEX_Cs = r"""\documentclass[dvips]{article}
 \end{document}
 """
 
-output_template = """{{% extends 'layout.html' %}}
-{{% block content %}}
-{0}
-{{% endblock %}}
-"""
-
 #
 # permission set
 #
@@ -548,17 +542,28 @@ def compile(user, project, doc_name, perm):
     except KeyError as e:
         log.warning("perm is incorrect")
     """
+
 def compile_project(user, project, perm):
     print("ㅇㅇ")
-    pass
 
+    return
 
+    allsubproject = get_all_subproject(user, project)
+    if not allsubproject:
+        for prj in allsubproject:
+            t = get_project_document(user, composePath(prj[0]))
+            if not t:
+                for doc in t:
+                    compile(user, prj[0], doc[2])
+            else:
+                continue
+
+    else:
+        return
 
 ### Deprecated In USER
 def compile_all():
     pass
-
-
 
 
 
@@ -689,6 +694,8 @@ if __name__ == '__main__':
     """
     initial setting 해야함
     """
+    if not os.path.isdir(dummydir):
+        os.makedirs(dummydir)
     app.secret_key = secrets.token_urlsafe(19)
     app.run(host="192.168.0.5", port="54321",)
     #print(get_raw('yenru0', '', 'teset'))
