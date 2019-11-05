@@ -1,0 +1,18 @@
+{% extends 'layout.html' %}
+{% block content %}
+<div id="controlnavbox">
+
+</div>
+
+<h1 id="doctitle">{{ document_name }}</h1>
+<div id="editbox">
+    <form method="post">
+        {% if not edit_perm  %}
+        <textarea class="editarea" name="text" wrap="soft" readonly = "readonly">{{ document_raw }}</textarea>
+        {% else %}
+        <textarea class="editarea"name="text" wrap="soft" spellcheck="true">{{ document_raw }}</textarea>
+        <button type="submit">save and compile</button>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}

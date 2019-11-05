@@ -1,33 +1,27 @@
 {% extends 'layout.html' %}
 {% block content %}
 <div id="controlnavbox">
-    <form method="POST">
-        <input type="submit" name="submit_compile" value="compile">
-        <input type="hidden" name="behavior" value="compile">
-    </form>
+    <div class="ctnavcontent">
+        <form id="compileForm" method="POST">
+            <input type="hidden" name="behavior" value="compile">
+        </form>
+        <a onclick="document.getElementById('compileForm').submit();">compile</a>
+    </div>
 </div>
 {% if projects %}
 <ul>
     {% for prj in projects %}
-    {% if prj[0] == ':public:' %}
     <li><a href="{{ url_for('showUser', user = prj[0], project_path = prj[1]) }}">{{ prj[1] }}</a></li>
-    {% else %}
-    <li>{{ composePath(prj[0], prj[1])}}</li>
-    {% endif %}
     {% endfor %}
-
 </ul>
 {% endif %}
 
 <hr>
+
 {% if documents %}
 <ul>
     {% for doc in documents %}
-    {% if doc[0] == ':public:' %}
     <li><a href="{{ url_for('showUser', user = doc[0], project_path = composePath(doc[1], '§' + doc[2])) }}">{{ composePath(doc[1], doc[2]) }}</a></li>
-    {% else %}
-    <li>{{ composePath(prj[0], prj[1])}}</li>
-    {% endif %}
     {% endfor %}
 </ul>
 {% endif %}

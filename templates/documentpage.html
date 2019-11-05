@@ -1,10 +1,30 @@
 {% extends 'layout.html' %}
 {% block content %}
 <div id="controlnavbox">
-    <form method="POST">
-        <input type="submit" name="submit_compile" value="compile">
-        <input type="hidden" name="behavior" value="compile">
-    </form>
+    <div class="ctnavcontent">
+        <form method="POST">
+            <input type="hidden" name="behavior" value="compile">
+            <div class="ctnavbutton">
+                <button type="submit">compile</button>
+            </div>
+        </form>
+    </div>
+    <div class="ctnavcontent">
+        <form method="POST">
+            <input type="hidden" name="behavior" value="edit">
+            <div class="ctnavbutton">
+                <button type="submit">edit</button>
+            </div>
+        </form>
+    </div>
+
 </div>
-{{ document_content | safe }}
+
+<h1 id="doctitle">
+    <a href="" class="link_doctitle">{{ document_name }} </a>
+</h1>
+
+<div id="documentbox">
+    {{ document_content | safe }}
+</div>
 {% endblock %}

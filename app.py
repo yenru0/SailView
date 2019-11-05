@@ -137,14 +137,14 @@ curs.execute("CREATE TABLE if not exists document (user, project, doc_name, raw,
 curs.execute("CREATE TABLE if not exists project (user, project, parent_project, description, access_perm)")
 curs.execute("CREATE TABLE if not exists history (user, project, doc_name, number, edit_user, cause, length)")
 curs.execute("CREATE TABLE if not exists user (name, id, pw, permission, date)")
-curs.execute("CREATE TABLE if not exists user_setting (name, key, value)")
+curs.execute("CREATE TABLE if not exists user_setting (id, key, value)")
 # make_user(":public:", ":public_system:", "admin", "admin")
-curs.execute("INSERT INTO user SELECT :name, :id, :pw, :perm, :date WHERE NOT EXISTS(SELECT * FROM user WHERE name = :name AND id = :id)",
-             {'name': ":public:", 'id': "☆→@public_system@←※", 'pw': sha3_256("admin".encode("utf-8")).hexdigest(), 'perm': "admin", 'date': dt.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+curs.execute("INSERT INTO user SELECT :name, :id, :pw, :perm, :date WHERE NOT EXISTS(SELECT * FROM user WHERE name = :name OR id = :id)",
+             {'name': ":public:", 'id': "→public", 'pw': sha3_256("절대적 권력자 욕하지마세요".encode("utf-8")).hexdigest(), 'perm': "admin", 'date': dt.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
               }
             )
-curs.execute("INSERT INTO user_setting SELECT :name, :key, :value WHERE NOT EXISTS(SELECT * FROM user_setting WHERE name = :name AND key = :key)",
-             {"name": ":public:", "key": "user_default_perm_set", "value": "/".join(public_document_permissions)}
+curs.execute("INSERT INTO user_setting SELECT :id, :key, :value WHERE NOT EXISTS(SELECT * FROM user_setting WHERE id = :id AND key = :key)",
+             {"id": "→public", "key": "user_default_perm_set", "value": "/".join(public_document_permissions)}
              )
 conn.commit()
 
@@ -246,6 +246,7 @@ def match_user_pw(id:str, pw:str):
     t = curs.fetchone()
     return bool(t)
 
+# not recommend
 @opendb
 def get_user_by_name(name):
     curs.execute("SELECT * FROM user WHERE name = :name", {"name": name})
@@ -263,7 +264,7 @@ def get_user_name_by_id(id):
 
 @opendb
 def get_user_by_id_name(name, id):
-    curs.execute("SELECT * FROM user WHERE id = :id", {"name": name, "id": id})
+    curs.execute("SELECT * FROM user WHERE id = :id AND name = :name", {"name": name, "id": id})
     return curs.fetchone()
 
 @opendb
@@ -319,22 +320,22 @@ def del_user(name:str, id:str):
 #
 
 @opendb
-def set_user_setting(name, key, value):
-    curs.execute("SELECT name FROM user_setting WHERE name = ? AND key = ?", (name, key))
+def set_user_setting(id, key, value):
+    curs.execute("SELECT name FROM user_setting WHERE id = ? AND key = ?", (id, key))
     t = curs.fetchone()
     if t is None:
-        curs.execute("INSERT INTO user_setting VALUES (:name, :key, :value) WHERE name = :name AND key = :key",
-                     {"name": name, "key": key, "value": value}
+        curs.execute("INSERT INTO user_setting VALUES (:id, :key, :value) WHERE id = :id AND key = :key",
+                     {"id": id, "key": key, "value": value}
                      )
     else:
-        curs.execute("UPDATE user_setting SET value = :value WHERE name = :name AND key = :key",
-                     {"name": name, "key": key, "value": value}
+        curs.execute("UPDATE user_setting SET value = :value WHERE id = :id AND key = :key",
+                     {"id": id, "key": key, "value": value}
                      )
     conn.commit()
     return True
 
 def get_user_setting(name, key):
-    curs.execute("SELECT value FROM user_setting WHERE name = ? AND key = ?", (name, key))
+    curs.execute("SELECT value FROM user_setting WHERE id = ? AND key = ?", (name, key))
     return curs.fetchone()
 
 
@@ -357,7 +358,7 @@ def get_compiled(user:str, project:str, doc_name:str):
 
 @opendb
 def check_document(user:str, project:str, doc_name:str):
-    if get_project(user, project):
+    if exist_project(user, project):
         curs.execute("SELECT doc_name FROM document WHERE user = :user AND project = :project AND doc_name = :doc_name",
                      {"user": user, "project": project, "doc_name": doc_name}
                      )
@@ -365,6 +366,15 @@ def check_document(user:str, project:str, doc_name:str):
     else:
         return False
 
+@opendb
+def exist_document(user:str, project:str, doc_name:str):
+    if exist_project(user, project):
+        curs.execute("SELECT doc_name FROM document WHERE user = :user AND project = :project AND doc_name = :doc_name",
+                     {"user": user, "project": project, "doc_name": doc_name}
+                     )
+        return bool(curs.fetchone())
+    else:
+        return False
 
 @opendb
 def make_document(user:str, project:str, doc_name:str, raw:str = ""):
@@ -377,7 +387,21 @@ def make_document(user:str, project:str, doc_name:str, raw:str = ""):
     else:
         return False
 
+@opendb
+def update_document_compiled(user:str, project:str, doc_name:str, compiled:str):
+    curs.execute("UPDATE document SET compiled = :compiled, last = :last WHERE user = :user AND project = :project AND doc_name = :doc_name",
+                 {"user": user, "project": project, "doc_name": doc_name, "compiled": compiled, "last": formatDatetimeNow()}
+                 )
+    conn.commit()
+    return True
 
+@opendb
+def update_document_raw(user:str, project:str, doc_name:str, raw:str):
+    curs.execute("UPDATE document SET raw = :raw WHERE user = :user AND project = :project AND doc_name = :doc_name",
+                 {"user": user, "project": project, "doc_name": doc_name, "raw": raw}
+                 )
+    conn.commit()
+    return True
 
 #
 # project
@@ -517,7 +541,7 @@ def GFM_LMX(raw, extended = True):
                         tempdvifname = os.path.splitext(tmpf.name)[0] + ".xdv"
 
                         op2: str = sp.check_output(
-                            "dvisvgm --clipjoin -e --stdout --no-fonts {0}".format(tempdvifname),
+                            "dvisvgm --bbox=min  --clipjoin -e --stdout --no-fonts {0}".format(tempdvifname),
                         )
 
                         output = latex_re.sub(op2.decode("utf-8"), output, count=1)
@@ -530,32 +554,27 @@ def GFM_LMX(raw, extended = True):
     return output
 
 
-def compile(user, project, doc_name, perm):
-    print("망내나")
-    """
+def compile(user:str, project:str, doc_name:str, perm:str):
+
     try:
-        t = get_raw(user, project, doc_name)
+        t = get_raw(user, project, doc_name)[0]
         if user_permission[perm] >= full_compile_able_permission:
             ot = GFM_LMX(t, extended = True)
         else:
             ot = GFM_LMX(t, extended = False)
-        # update
+        update_document_compiled(user, project, doc_name, ot)
     except KeyError as e:
         log.warning("perm is incorrect")
-    """
 
-def compile_project(user, project, perm):
-    print("ㅇㅇ")
 
-    return
-
+def compile_project(user:str, project:str, perm:str):
     allsubproject = get_all_subproject(user, project)
-    if not allsubproject:
+    if allsubproject:
         for prj in allsubproject:
             t = get_project_document(user, composePath(prj[0]))
-            if not t:
+            if t:
                 for doc in t:
-                    compile(user, prj[0], doc[2])
+                    compile(user, prj[0], doc[2], perm)
             else:
                 continue
 
@@ -572,7 +591,7 @@ def compile_all():
 @app.route("/docs/<user>", methods=["GET"])
 @app.route("/docs/<user>/<path:project_path>", methods=["GET"])
 def showUser(user, project_path= None):
-    if user != ":public:":
+    if user != "→public":
         return "없어요"
     else:
 
@@ -586,45 +605,121 @@ def showUser(user, project_path= None):
                 if t1 is None:
                     return render_template("somethingNotFound.html", document_path = project_path)
                 else:
-                    return render_template("documentpage.html", document_content = t1[0])
+                    return render_template("documentpage.html", document_content = t1[0], document_name = t[-1][1:])
 
             else:
                 if exist_project(user, project_path):
-                    return render_template("docs_directory.html", projects = get_subproject(user, project_path), documents = get_project_document(user, project_path))
+                    return render_template("docs_directory.html",
+                                           projects = get_subproject(user, project_path),
+                                           documents = get_project_document(user, project_path)
+                                           )
                 else:
                     return render_template("somethingNotFound.html", project_path = project_path)
 
 @app.route("/docs/<user>", methods=["POST"])
 @app.route("/docs/<user>/<path:project_path>", methods=["POST"])
 def behaviorUser(user, project_path = None):
-    if user != ":public:":
+    if user != "→public":
         return "없어요"
     else:
         behavior = request.form["behavior"]
         perm = get_user_perm_by_id(session.get("id"))
         if behavior == "compile":
             if project_path is None:
-                print("제오리온")
-                pass
-                # compile_all
+                compile_project(user, project_path, "moderator")
             else:
                 t = [i for i in project_path.split("/") if i]
 
                 if t[-1][0] == "§":
                     doc_name = t[-1][1:]
                     project = composePath(*t[0:-1])
-                    compile(user, project, doc_name, 3)
+                    compile(user, project, doc_name, "moderator")
                 else :
-                    compile_project(user, project_path, 4)
+                    compile_project(user, project_path, "moderator")
+            return redirect(url_for("showUser", user=user, project_path=project_path))
+        elif behavior == "edit":
+            t = [i for i in project_path.split("/") if i]
+            if t[-1][0] == "§":
+                doc_name = t[-1][1:]
+                project = composePath(*t[0:-1])
+                return redirect(url_for("editUser", user = user, project_path=project_path))
+            else:
                 return redirect(url_for("showUser", user=user, project_path=project_path))
-        return "404"
+        elif behavior == "new":
+            return redirect(url_for("newDocProj"))
+        return "403"
 
 
+@app.route("/new", methods=["GET"])
+def newDocProj():
+    return render_template("document_new.html")
+@app.route("/new", methods= ["POST"])
+def postNewDocProj():
+    if request.form["isdoc"]:
+        proj = request.form["project"]
+        docn = request.form["document"]
+        if make_document("→public", proj, docn):
+            redirect("/front")
+        else:
+            return "실패"
+    else:
+        proj = request.form["project"]
+        if len(proj.split("/")) == 1:
+            proj = "/" + proj
+        if make_project("→public", "/".join(proj.split("/")[0:-1]), proj.split("/")[-1]):
+            redirect("/front")
+        else:
+            return "실패"
+    return redirect("showUser")
 
 
-@app.route("/")
+@app.route("/edit/<user>", methods=["GET"])
+@app.route("/edit/<user>/<path:project_path>", methods=["GET"])
+def editUser(user, project_path = None):
+    if user != "→public":
+        return "없어요"
+    else:
+        if project_path is None:
+            return redirect("/front")
+        else:
+            t = [i for i in project_path.split("/") if i]
+            if t[-1][0] == "§":
+                doc_name = t[-1][1:]
+                project = composePath(*t[0:-1])
+                if exist_document(user, project, doc_name):
+                    return render_template("document_editpage.html", document_raw = get_raw(user, project, doc_name)[0], edit_perm = True, document_name = doc_name)
+                else:
+                    return render_template("somethingNotFound.html", document_path=project_path)
+            else:
+                return redirect("/front")
+    return "403"
+
+@app.route("/edit/<user>", methods=["POST"])
+@app.route("/edit/<user>/<path:project_path>", methods=["POST"])
+def postEditUser(user, project_path = None):
+    if user != "→public":
+        return "없어요"
+    else:
+        # only 'document'
+        t = [i for i in project_path.split("/") if i]
+        if t[-1][0] == "§":
+            doc_name = t[-1][1:]
+            project = composePath(*t[0:-1])
+            if exist_document(user, project, doc_name):
+                update_document_raw(user, project, doc_name, request.form["text"])
+                compile(user, project, doc_name, "moderator")
+                return redirect(url_for("showUser", user = user, project_path= project_path))
+            else:
+                return render_template("somethingNotFound.html", document_path=project_path)
+        else:
+            return redirect("/front")
+
+
 def c():
+    make_project("→public", None, "주하진 고찰지")
+    make_document("→public", "주하진 고찰지", "I'm Not thinking that is True But It is True if You are Talking about me But Are We really exist? Okay Great. False.", "Hello")
     return ""
+
 
 @app.route("/login", methods=["GET", "POST"])
 def loginPage():
@@ -658,37 +753,11 @@ def registerPage():
         else :
             return redirect(url_for("registerPage"))
 
+@app.route("/")
 @app.route("/front/")
 def frontPage():
     return render_template("frontpage.html")
 
-"""
-@app.route("/compile", methods=['POST'])
-def showCompile():
-    path = request.form['path']
-    if path == None:
-        path = ''
-        pass
-    else:
-        compile(composePath(topdir, os.path.splitext(path)[0]))
-    return redirect(url_for('showDocument', document_path=path))
-
-@app.route("/compile_dir", methods=['POST'])
-def showCompile_dir():
-    path = request.form['path']
-    if path == None:
-        path = ''
-        pass
-    else:
-        for p, dirs, fns in os.walk(composePath(topdir, path)):
-            for fn in fns:
-                ext = os.path.splitext(fn)[-1]
-                if ext == '.md':
-                    print(composePath(p, fn))
-                    compile(composePath(p, fn))
-
-    return redirect(url_for('showDocument', document_path=path))
-"""
 
 
 if __name__ == '__main__':

@@ -1,0 +1,9 @@
+{% extends 'layout.html' %}
+{% block content %}
+<form method="post">
+    <input type="text" name="project" placeholder = "project name">
+    <input type="text" name="document" placeholder="document name">
+    <input type="checkbox" name="isdoc">generate document</input>
+    <input type ="submit">
+</form>
+{% endblock %}
